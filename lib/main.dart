@@ -1,125 +1,177 @@
-                                                                                                                                                                                                                                            import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:here_sdk/core.dart';
+import 'package:here_sdk/core.engine.dart';
+import 'package:here_sdk/core.errors.dart';
+import 'package:here_sdk/mapview.dart';
+
+import 'data/models/Routing.dart';
 
 void main() {
-  runApp(const MyApp());
+  // Usually, you need to initialize the HERE SDK only once during the lifetime of an application.
+  _initializeHERESDK();
+
+  // Ensure that all widgets, including MyApp, have a MaterialLocalizations object available.
+  runApp(MaterialApp(home: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+void _initializeHERESDK() async {
+  // Needs to be called before accessing SDKOptions to load necessary libraries.
+  SdkContext.init(IsolateOrigin.main);
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
+    String accessKeyId = "nqLgpsRwElcuFRG7Lj95lg";
+  String accessKeySecret = "TNEVUFlfWp99q2ie0Y4yq84w2WuvAZzntCZA0ck-NzMvuWlFm8RQ8Wmn9c2Vhpey5D-XcC0zRauQfg5Q1Zndag";
+  AuthenticationMode authenticationMode =
+      AuthenticationMode.withKeySecret(accessKeyId, accessKeySecret);
+  SDKOptions sdkOptions = SDKOptions.withAuthenticationMode(authenticationMode);
+
+  try {
+    await SDKNativeEngine.makeSharedInstance(sdkOptions);
+  } on InstantiationException {
+    throw Exception("Failed to initialize the HERE SDK.");
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
+class MyApp extends StatefulWidget {
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  _MyAppState createState() => _MyAppState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+class _MyAppState extends State<MyApp> {
+  RoutingHERE? _routingHERE;
+  HereMapController? _hereMapController;
+  final List<bool> _selectedTrafficOptimization = <bool>[true];
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text('HERE SDK - Routing'),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
+      body: Stack(
+        children: [
+          HereMap(onMapCreated: _onMapCreated),
+          Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  button('Add Route', _addRouteButtonClicked),
+                  button('Clear Map', _clearMapButtonClicked),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  ToggleButtons(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(8.0),
+                          decoration: BoxDecoration(
+                            color: Colors.lightBlueAccent,
+                            borderRadius: BorderRadius.circular(16.0),
+                          ),
+                          child: Text(
+                            _selectedTrafficOptimization[0]
+                                ? 'Traffic Optimization-On'
+                                : 'Traffic Optimization-OFF',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18.0,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onPressed: (int index) {
+                        _toggleTrafficOptimization();
+                        setState(() {
+                          _selectedTrafficOptimization[index] =
+                          !_selectedTrafficOptimization[index];
+                        });
+                      },
+                      isSelected: _selectedTrafficOptimization),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onMapCreated(HereMapController hereMapController) {
+    _hereMapController = hereMapController;
+    _hereMapController?.mapScene.loadSceneForMapScheme(MapScheme.normalDay,
+            (MapError? error) {
+          if (error == null) {
+            _hereMapController?.mapScene.enableFeatures(
+                {MapFeatures.lowSpeedZones: MapFeatureModes.lowSpeedZonesAll});
+            _routingHERE = RoutingHERE(_showDialog, hereMapController);
+          } else {
+            print("Map scene not loaded. MapError: " + error.toString());
+          }
+        });
+  }
+
+  void _toggleTrafficOptimization() {
+    _routingHERE?.toggleTrafficOptimization();
+  }
+
+  void _addRouteButtonClicked() {
+    _routingHERE?.addRoute();
+  }
+
+  void _clearMapButtonClicked() {
+    _routingHERE?.clearMap();
+  }
+
+  @override
+  void dispose() {
+    // Free HERE SDK resources before the application shuts down.
+    SDKNativeEngine.sharedInstance?.dispose();
+    SdkContext.release();
+    super.dispose();
+  }
+
+  // A helper method to add a button on top of the HERE map.
+  Align button(String buttonLabel, Function callbackFunction) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Colors.white,
+          backgroundColor: Colors.lightBlueAccent,
+        ),
+        onPressed: () => callbackFunction(),
+        child: Text(buttonLabel, style: TextStyle(fontSize: 20)),
+      ),
+    );
+  }
+
+  // A helper method to show a dialog.
+  Future<void> _showDialog(String title, String message) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text(message),
+              ],
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
             ),
           ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+        );
+      },
     );
   }
 }
