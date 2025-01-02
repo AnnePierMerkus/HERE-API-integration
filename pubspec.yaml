@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_dotenv: ^5.0.2
+  http: ^1.2.2
   here_sdk:
     path: plugins/here_sdk
   # The following adds the Cupertino Icons font to your application.

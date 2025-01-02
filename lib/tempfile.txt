@@ -29,8 +29,7 @@ import 'package:here_sdk/mapview.dart';
 import 'package:here_sdk/routing.dart';
 import 'package:here_sdk/routing.dart' as here;
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+// import 'package:routing_app/TimeUtils.dart';
 
 // A callback to notify the hosting widget.
 typedef ShowDialogFunction = void Function(String title, String message);
@@ -62,35 +61,13 @@ class RoutingHERE {
   Future<void> addRoute() async {
     var startGeoCoordinates = GeoCoordinates(52.960221, 5.924452); // Kattebos 5, Heerenveen
     var destinationGeoCoordinates = GeoCoordinates(53.246855, 6.535634); // Zernikeplein 7, Groningen
-    // var startGeoCoordinates = GeoCoordinates(52.365760, 4.920020); // Oosterpark, Amsterdam
-    // var destinationGeoCoordinates = GeoCoordinates(52.089444, 5.110278); // Utrecht Centraal, Utrecht
-
-    // var startGeoCoordinates = GeoCoordinates(52.363669, 4.891891); // Museum van Loon, Keizersgracht 672, Amsterdam
-    // var destinationGeoCoordinates = GeoCoordinates(52.367240, 4.895456); // Pathé de Munt, Vijzelstraat 15, Amsterdam
 
     // var startGeoCoordinates = _BERLIN_HQ_GEO_COORDINATES;
-    // var destinationGeoCoordinates = _creatreseRandomGeoCoordinatesInViewport();
+    // var destinationGeoCoordinates = _createRandomGeoCoordinatesInViewport();
     var startWaypoint = Waypoint.withDefaults(startGeoCoordinates);
     var destinationWaypoint = Waypoint.withDefaults(destinationGeoCoordinates);
 
     waypoints = [startWaypoint, destinationWaypoint];
-    final url = Uri.parse('https://router.hereapi.com/v8/routes?'
-        'destination=53.246855,6.535634&'
-        'origin=52.960221,5.924452&'
-        'transportMode=scooter&'
-        'vehicle[speedCap]=14&'
-        'apikey=5IL-qoY4WWXxh_SR8nilsXjHQSDx910CYiaUS-CcH2k');
-
-    // Send the request
-    var response = await http.get(url);
-
-    // Print the response
-    if (response.statusCode == 200) {
-      print('Response data: ${response.body}');
-    } else {
-      print('Request failed with status: ${response.statusCode}');
-    }
-
     _calculateRoute(waypoints);
   }
 
@@ -102,20 +79,22 @@ class RoutingHERE {
   }
 
   void _calculateRoute(List<Waypoint> waypoints) {
-    ScooterOptions scooterOptions = ScooterOptions();
     CarOptions carOptions = CarOptions();
+    ScooterOptions scooterOptions = ScooterOptions();
+    scooterOptions.routeOptions.speedCapInMetersPerSecond = 13.89;
+    carOptions.routeOptions.enableTolls = true;
+    carOptions.routeOptions.speedCapInMetersPerSecond = 13.89;
 
-    carOptions.routeOptions.trafficOptimizationMode = _trafficOptimization ?
+    scooterOptions.routeOptions.trafficOptimizationMode = _trafficOptimization ?
     TrafficOptimizationMode.timeDependent : TrafficOptimizationMode.disabled;
+
     carOptions.routeOptions.alternatives = 5;
 
-    _routingEngine.calculateCarRoute(waypoints, carOptions,
+    _routingEngine.calculateScooterRoute(waypoints, scooterOptions,
             (RoutingError? routingError, List<here.Route>? routeList) async {
           if (routingError == null) {
-            print("route amount ${routeList!.length}");
             // If no error, continue processing the route
-            for (here.Route routel in routeList) {
-              print( "section amount: ${routel.sections.length}");
+            for (here.Route routel in routeList!) {
               // Loop through each section of the route
               for (var section in routel.sections) {
                 print("Section length: ${section.lengthInMeters}");
@@ -264,8 +243,6 @@ class RoutingHERE {
   _showRouteOnMap(here.Route route) {
     clearMap();
     // Show route as polyline.
-    print("GEOLINES HERE PLEASE");
-    print(route.geometry);
     GeoPolyline routeGeoPolyline = route.geometry;
     double widthInPixels = 20;
     Color polylineColor = const Color.fromARGB(160, 0, 144, 138);
