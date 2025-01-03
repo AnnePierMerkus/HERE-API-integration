@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valhalla Polyline Decoder</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        #map {
+            height: 500px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <script>
+        function decode(str, precision) {
+            var index = 0,
+                lat = 0,
+                lng = 0,
+                coordinates = [],
+                shift = 0,
+                result = 0,
+                byte = null,
+                latitude_change,
+                longitude_change,
+                factor = Math.pow(10, precision || 6);
+
+            // Coordinates have variable length when encoded, so just keep
+            // track of whether we've hit the end of the string. In each
+            // loop iteration, a single coordinate is decoded.
+            while (index < str.length) {
+
+                // Reset shift, result, and byte
+                byte = null;
+                shift = 0;
+                result = 0;
+
+                do {
+                    byte = str.charCodeAt(index++) - 63;
+                    result |= (byte & 0x1f) << shift;
+                    shift += 5;
+                } while (byte >= 0x20);
+
+                latitude_change = ((result & 1) ? ~(result >> 1) : (result >> 1));
+
+                shift = result = 0;
+
+                do {
+                    byte = str.charCodeAt(index++) - 63;
+                    result |= (byte & 0x1f) << shift;
+                    shift += 5;
+                } while (byte >= 0x20);
+
+                longitude_change = ((result & 1) ? ~(result >> 1) : (result >> 1));
+
+                lat += latitude_change;
+                lng += longitude_change;
+
+                coordinates.push([lat / factor, lng / factor]);
+            }
+
+            return coordinates;
+        };
+        var map = L.map('map').setView([53.2194, 6.5665], 13);
+
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Coordinates for Koevorde 12, Heerenveen and Zernikeplein 7, Groningen
+        // var startLatLng = [52.9448983, 5.9164287];  // Koevorde 12, Heerenveen
+        // var endLatLng = [53.2194, 6.5665];    // Zernikeplein 7, Groningen
+
+        var startLatLng = [52.363566, 4.893489]
+        var endLatLng = [52.366455, 4.893221]
+        // var startLatLng = [52.365760, 4.920020]
+        // var endLatLng = [52.089444, 5.11027];
+        // Valhalla API URL
+        var valhallaUrl = 'https://valhalla1.openstreetmap.de/route';
+
+        // Request route from Valhalla API
+        function getRoute() {
+            var requestData = {
+                locations: [
+                    { lat: startLatLng[0], lon: startLatLng[1] },
+                    { lat: endLatLng[0], lon: endLatLng[1] }
+                ],
+                "costing": "auto",  // Use the "auto" costing profile for cars
+                "costing_options": {
+                    "auto": {
+                        "use_hills": 0.5,
+                        "use_highways": 1.0,
+                        "service_penalty": 0.0,
+                        "service_factor": 1.0,
+                        "use_living_streets": 1.0,
+                        "exclude_restricted": false,   // Ignore restrictions like "access=no"
+                        "allow_bicycle": true, 
+                        "allow_bicycle": true,
+                        "top_speed": 50 // Allow bicycles and override restrictions on bike lanes
+                    }
+                },
+
+                // costing: 'motor_scooter', // Motor-scooter type
+                // costing_options: {
+                //     motor_scooter: {
+                //         use_highways: 1.0,  // Allow highways (0.0 avoids them, 1.0 fully allows them)
+                //         use_primary: 1.0,   // Prefer primary roads
+                //         use_secondary: 1.0, // Prefer secondary roads
+                //         top_speed: 140       // Set a higher top speed for routing
+                //     }
+                // },
+                // motor_scooter_options: {
+                //     costing_options: {
+                //         use_highways: 1.0,  // Allow highways (0.0 avoids them, 1.0 fully allows them)
+                //         use_primary: 1.0,   // Prefer primary roads
+                //         use_secondary: 1.0, // Prefer secondary roads
+                //         top_speed: 140       // Set a higher top speed for routing
+                //     },
+                //     use_primary: 1.0,
+                //     use_highways: 1.0,  // Allow highways (0.0 avoids them, 1.0 fully allows them)
+                //     use_primary: 1.0,   // Prefer primary roads
+                //     use_secondary: 1.0, // Prefer secondary roads
+                //     top_speed: 140,
+                "speed": 50,  // Set your custom speed here (e.g., 35 km/h)
+                // },
+                instructions: true,
+                language: 'en'
+            };
+
+            fetch(valhallaUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Extract the encoded polyline from Valhalla's response
+                    var encodedPolyline = data.trip.legs[0].shape;
+
+                    // Decode the polyline using the polyline library
+                    var decodedPolyline = decode(encodedPolyline, 6); // Decode to lat/lon pairs
+                    console.log(decodedPolyline)
+                    // Add decoded route to the map
+                    L.polyline(decodedPolyline, { color: 'blue' }).addTo(map);
+                })
+                .catch(error => console.error('Error fetching route:', error));
+        }
+
+        getRoute();  // Fetch the route and display it
+    </script>
+</body>
+
+</html>
