@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>HERE Maps API Route Display</title>
+    <meta charset="UTF-8">
+    <script type="text/javascript" src="https://js.api.here.com/v3/3.1/mapsjs-core.js"></script>
+    <script type="text/javascript" src="https://js.api.here.com/v3/3.1/mapsjs-service.js"></script>
+    <script type="text/javascript">
+        var platform = new H.service.Platform({
+            apikey: '5IL-qoY4WWXxh_SR8nilsXjHQSDx910CYiaUS-CcH2k'
+        });
+        var map;
+
+        
+        var origin = [52.365760, 4.920020];  
+        var destination = [52.089444, 5.110278];
+
+        // var origin = [52.363568, 4.893449];  
+        // var destination = [52.366437, 4.893256];
+
+
+        var params = {
+            point: [origin[0] + ',' + origin[1], destination[0] + ',' + destination[1]],  // Lat, Lng points
+            type: 'json',
+            vehicle: 'scooter',
+            algorithm: 'astar',
+            maxspeed: 80, // Speed limit constraint
+            calc_points: true,
+            instructions: true
+        };
+
+        function decodePolyline(encoded) {
+            var coordinates = [];
+            var index = 0, lat = 0, lng = 0;
+
+            while (index < encoded.length) {
+                var byte, shift = 0, result = 0;
+                do {
+                    byte = encoded.charCodeAt(index++) - 63;
+                    result |= (byte & 0x1f) << shift;
+                    shift += 5;
+                } while (byte >= 0x20);
+
+                var deltaLat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lat += deltaLat;
+
+                shift = 0;
+                result = 0;
+                do {
+                    byte = encoded.charCodeAt(index++) - 63;
+                    result |= (byte & 0x1f) << shift;
+                    shift += 5;
+                } while (byte >= 0x20);
+
+                var deltaLng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lng += deltaLng;
+
+                coordinates.push({ lat: lat / 1E5, lng: lng / 1E5 });
+            }
+
+            return coordinates;
+        }
+
+
+        function fetchRouteData() {
+            return new Promise((resolve, reject) => {
+                var xhr = new XMLHttpRequest();
+                graphHopperUrl = 'https://graphhopper.com/api/1/route?key=02a1c92a-cd2e-460d-8125-7ccfe7ab4ad3';
+                graphHopperUrl += '&point=' + params.point.join('&point=') + '&type=' + params.type + '&vehicle=' + params.vehicle + '&maxspeed=' + params.maxspeed + '&calc_points=' + params.calc_points + '&instructions=' + params.instructions  + '&algorithm=' + params.algorithm + "&ch.disable=true";
+                console.log(graphHopperUrl)
+                xhr.open('GET', graphHopperUrl, true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+
+                        var response = JSON.parse(xhr.responseText);
+                        var polylineString = response.paths[0].points;
+                        var decodedString = decodePolyline(polylineString)
+                        resolve(response);  // Resolve with the full response
+                    } else {
+                        reject('Error fetching route data: ' + xhr.status);  // Reject with error message
+                    }
+                };
+                xhr.send();
+            });
+        }
+
+
+        async function initMap() {
+            var respnose = "";
+            var polylineString = "";
+            try {
+                // Wait for the route data to be fetched
+                response = await fetchRouteData();
+
+                console.log('Full Response:', response);
+
+                // Extract polyline if needed
+                polylineString = response.paths[0].points;
+
+                const decodedPolyline = decode(polylineString);
+
+                console.log('Decoded Polyline:', decodedPolyline);
+
+                // Now you can proceed to initialize your map using the full response and decoded polyline
+                // Map initialization code goes here, using response and decodedPolyline
+
+            } catch (error) {
+                console.error('Failed to fetch route data:', error);
+            }
+
+            fetchRouteData();
+            var defaultLayers = platform.createDefaultLayers();
+            map = new H.Map(document.getElementById('map'), defaultLayers.vector.normal.map, {
+                center: { lat: 52.96092, lng: 5.92378 }, // Center map on departure
+                zoom: 14
+            });
+
+            // Using the response you provided
+            var routeResponse = {
+                "routes": [{
+                    "id": "0ca0d494-6ed1-4e20-84d5-d136c74a904b",
+                    "sections": [{
+                        "id": "fc098ae9-851d-4982-a560-bee076b5edf1",
+                        "type": "vehicle",
+                        "departure": {
+                            "time": "2025-01-02T16:41:30+01:00",
+                            "place": {
+                                "type": "place",
+                                "location": { "lat": 52.365760, "lng": 4.920020 }
+                                // "location": { "lat": 52.365760, "lng": 4.920020 }
+
+                                // "location": { "lat": 52.363568, "lng": 4.893449 }
+                            }
+                        },
+                        "arrival": {
+                            "time": "2025-01-02T18:15:32+01:00",
+                            "place": {
+                                "type": "place",
+                                "location": { "lat": 52.089444, "lng": 5.110278 }
+                                // "location": { "lat": 52.366437, "lng": 4.893256 }
+                                // "location": { "lat": 52.366437, "lng": 4.893256 }
+                            }
+                        },
+                    }]
+                }]
+            };
+
+            // Extracting the departure and arrival coordinates
+            var departureLatLng = routeResponse.routes[0].sections[0].departure.place.location; // response.routes[0].sections[0].departure.place.location; // routeResponse.routes[0].sections[0].departure.place.location;
+            var arrivalLatLng = routeResponse.routes[0].sections[0].arrival.place.location; // response.routes[0].sections[0].arrival.place.location; // routeResponse.routes[0].sections[0].arrival.place.location;
+            // const polylineString = routeResponse.routes[0].sections[0].polyline;
+
+            // Add the departure and arrival points as markers on the map
+            var departureMarker = new H.map.Marker(departureLatLng);
+            var arrivalMarker = new H.map.Marker(arrivalLatLng);
+            map.addObject(departureMarker);
+            map.addObject(arrivalMarker);
+
+            console.log("COME ON")
+            // Optionally, add a line between departure and arrival points
+            var lineString = new H.geo.LineString();
+            lineString.pushLatLngAlt(departureLatLng.lat, departureLatLng.lng);
+            console.log("i'M HERE")
+            var decodedPolyline = decodePolyline(polylineString);
+            console.log(decodedPolyline.length)
+            console.log(decodedPolyline)
+            decodedPolyline.forEach(point => {
+                lineString.pushLatLngAlt(point['lat'], point["lng"]);
+            })
+            lineString.pushLatLngAlt(arrivalLatLng.lat, arrivalLatLng.lng);
+
+            var polyline = new H.map.Polyline(lineString, {
+                style: { strokeColor: 'blue', lineWidth: 5 }
+            });
+            map.addObject(polyline);
+
+            // Adjust the map's viewport to fit the route
+            map.getViewModel().setLookAtData({
+                bounds: polyline.getBoundingBox()
+            });
+        }
+
+        window.onload = initMap;
+    </script>
+</head>
+
+<body>
+    <div id="map" style="width: 100%; height: 500px;"></div>
+</body>
+
+</html>
