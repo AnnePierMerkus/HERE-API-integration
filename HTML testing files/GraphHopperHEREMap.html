@@ -8,22 +8,58 @@
     <script type="text/javascript" src="https://js.api.here.com/v3/3.1/mapsjs-service.js"></script>
     <script type="text/javascript">
         var platform = new H.service.Platform({
-            apikey: '5IL-qoY4WWXxh_SR8nilsXjHQSDx910CYiaUS-CcH2k'
+            apikey: '3XpdcsjPWM-vwXrp9Dl9MAp4bC4wNnuUbAUG2mnvXds'
         });
         var map;
 
-        
-        var origin = [52.365760, 4.920020];  
-        var destination = [52.089444, 5.110278];
+        var origin = [52.391087, 4.903762]
+        var destination = [52.373803, 4.912135]
+        // var origin = [52.365760, 4.920020];
+        // var destination = [52.089444, 5.110278];
 
         // var origin = [52.363568, 4.893449];  
         // var destination = [52.366437, 4.893256];
 
+/*
+{
+  "priority": [
+    { "if": "true",  "multiply_by": "bike_priority" },
+    { "if": "road_class == MOTORWAY", "multiply_by": "0" },
+//    { "if": "road_environment == FERRY", "multiply_by": "1" },
 
+    { "if": "max_speed == 0", "multiply_by": "1" },
+    { "if": "bike_road_access == PRIVATE && foot_road_access != YES", "multiply_by": "0" },
+    { "if": "mtb_rating > 2",  "multiply_by": "0" },
+    { "if": "hike_rating > 1",  "multiply_by": "0" },
+    { "if": "country == DEU && road_class == BRIDLEWAY && bike_road_access != YES", "multiply_by": "0" },
+    { "if": "!bike_access && (!backward_bike_access || roundabout)",  "multiply_by": "0" },
+    { "else_if": "!bike_access && backward_bike_access",  "multiply_by": "0.2" }
+  ],
+  "speed": [
+        { "if": "true", "limit_to": "50" },
+        { "if": "road_access == PRIVATE", "limit_to": "5" }
+  ]
+//}
+
+//{
+//  "priority": [
+//    { "if": "true", "multiply_by": "1" },
+//    { "if": "road_class == MOTORWAY", "multiply_by": "0" },
+//    { "if": "max_speed > 15", "multiply_by": "0" },
+//    { "if": "road_environment == FERRY", "multiply_by": "1" }
+//  ],
+//  "speed": [
+//    { "if": "true", "limit_to": "15" },
+////    { "if": "road_environment == FERRY", "limit_to": "5" },
+//    { "if": "road_access == PRIVATE", "limit_to": "5" }
+//  ]
+}
+
+*/
         var params = {
             point: [origin[0] + ',' + origin[1], destination[0] + ',' + destination[1]],  // Lat, Lng points
             type: 'json',
-            vehicle: 'scooter',
+            vehicle: 'dutch_scooter',
             algorithm: 'astar',
             maxspeed: 80, // Speed limit constraint
             calc_points: true,
@@ -66,8 +102,8 @@
         function fetchRouteData() {
             return new Promise((resolve, reject) => {
                 var xhr = new XMLHttpRequest();
-                graphHopperUrl = 'https://graphhopper.com/api/1/route?key=02a1c92a-cd2e-460d-8125-7ccfe7ab4ad3';
-                graphHopperUrl += '&point=' + params.point.join('&point=') + '&type=' + params.type + '&vehicle=' + params.vehicle + '&maxspeed=' + params.maxspeed + '&calc_points=' + params.calc_points + '&instructions=' + params.instructions  + '&algorithm=' + params.algorithm + "&ch.disable=true";
+                graphHopperUrl = 'http://localhost:8989/route?';
+                graphHopperUrl += '&point=' + params.point.join('&point=') + '&type=' + params.type + '&profile=' + params.vehicle + '&maxspeed=' + params.maxspeed + '&calc_points=' + params.calc_points + '&instructions=' + params.instructions + '&algorithm=' + params.algorithm + "&ch.disable=true";
                 console.log(graphHopperUrl)
                 xhr.open('GET', graphHopperUrl, true);
                 xhr.onload = function () {
@@ -98,7 +134,7 @@
                 // Extract polyline if needed
                 polylineString = response.paths[0].points;
 
-                const decodedPolyline = decode(polylineString);
+                // const decodedPolyline = decode(polylineString);
 
                 console.log('Decoded Polyline:', decodedPolyline);
 
@@ -127,7 +163,8 @@
                             "time": "2025-01-02T16:41:30+01:00",
                             "place": {
                                 "type": "place",
-                                "location": { "lat": 52.365760, "lng": 4.920020 }
+                                // "location": { "lat": 52.365760, "lng": 4.920020 }52.391087, 4.903762
+                                "location": { "lat": 52.391087, "lng": 4.903762 }
                                 // "location": { "lat": 52.365760, "lng": 4.920020 }
 
                                 // "location": { "lat": 52.363568, "lng": 4.893449 }
@@ -137,7 +174,8 @@
                             "time": "2025-01-02T18:15:32+01:00",
                             "place": {
                                 "type": "place",
-                                "location": { "lat": 52.089444, "lng": 5.110278 }
+                                "location": { "lat": 52.373803, "lng": 4.912135 }
+                                // "location": { "lat": 52.089444, "lng": 5.110278 }
                                 // "location": { "lat": 52.366437, "lng": 4.893256 }
                                 // "location": { "lat": 52.366437, "lng": 4.893256 }
                             }

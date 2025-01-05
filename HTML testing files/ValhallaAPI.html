@@ -76,12 +76,13 @@
         // var startLatLng = [52.9448983, 5.9164287];  // Koevorde 12, Heerenveen
         // var endLatLng = [53.2194, 6.5665];    // Zernikeplein 7, Groningen
 
-        var startLatLng = [52.363566, 4.893489]
-        var endLatLng = [52.366455, 4.893221]
-        // var startLatLng = [52.365760, 4.920020]
-        // var endLatLng = [52.089444, 5.11027];
+        // var startLatLng = [52.363566, 4.893489]
+        // var endLatLng = [52.366455, 4.893221]
+        var startLatLng = [52.365760, 4.920020]
+        var endLatLng = [52.089444, 5.11027];
         // Valhalla API URL
         var valhallaUrl = 'https://valhalla1.openstreetmap.de/route';
+        // var valhallaUrl = 'http://localhost:8002/route';
 
         // Request route from Valhalla API
         function getRoute() {
@@ -90,20 +91,90 @@
                     { lat: startLatLng[0], lon: startLatLng[1] },
                     { lat: endLatLng[0], lon: endLatLng[1] }
                 ],
-                "costing": "auto",  // Use the "auto" costing profile for cars
+                "costing": "motor_scooter",  // Use the "auto" costing profile for cars
+
                 "costing_options": {
-                    "auto": {
-                        "use_hills": 0.5,
-                        "use_highways": 1.0,
-                        "service_penalty": 0.0,
-                        "service_factor": 1.0,
-                        "use_living_streets": 1.0,
-                        "exclude_restricted": false,   // Ignore restrictions like "access=no"
-                        "allow_bicycle": true, 
-                        "allow_bicycle": true,
-                        "top_speed": 50 // Allow bicycles and override restrictions on bike lanes
+                    "dutch_scooter": {
+                        "type": "costing_options",
+                        "name": "dutch_scooter",
+                        "default": {
+                            "maneuver_penalty": 15.0,
+                            "gate_cost": 30.0,
+                            "gate_penalty": 300.0,
+                            "country_crossing_cost": 600.0,
+                            "country_crossing_penalty": 0.0,
+                            "service_penalty": 15.0,
+                            "service_factor": 1.0,
+                            "max_speed": 60,
+                            "top_speed": 60,
+                            "use_primary": 0.5,
+                            "use_hills": 0.5,
+                            "use_ferry": 0.5,
+                            "height": 2.0,
+                            "width": 1.0,
+                            "toll_booth_cost": 15.0,
+                            "toll_booth_penalty": 0.0,
+                            "ferry_cost": 300.0,
+                            "use_highways": 0.0,
+                            "use_tolls": 0.5,
+                            "bicycle_access": true
+                        },
+                        "road_classifications": {
+                            "motorway": {
+                                "default_speed": 0,
+                                "access": false
+                            },
+                            "trunk": {
+                                "default_speed": 0,
+                                "access": false
+                            },
+                            "primary": {
+                                "default_speed": 60,
+                                "access_conditional": "maxspeed <= 60"
+                            },
+                            "secondary": {
+                                "default_speed": 60,
+                                "access_conditional": "maxspeed <= 60"
+                            },
+                            "tertiary": {
+                                "default_speed": 50,
+                                "access": true
+                            },
+                            "unclassified": {
+                                "default_speed": 45,
+                                "access": true
+                            },
+                            "residential": {
+                                "default_speed": 45,
+                                "access": true
+                            },
+                            "service": {
+                                "default_speed": 30,
+                                "access": true
+                            },
+                            "cycleway": {
+                                "default_speed": 25,
+                                "access_conditional": "scooter = yes OR moped = yes"
+                            }
+                        }
                     }
                 },
+                // "costing": "motor_scooter",  // Use the "auto" costing profile for cars
+                // "costing_options": {
+                //     "motor_scooter": {
+                //         "use_hills": 0.5,
+                //         "use_highways": 1.0,
+                //         use_primary: 1.0,
+                //         use_secondary: 1.0,
+                //         "service_penalty": 0.0,
+                //         "service_factor": 1.0,
+                //         "use_living_streets": 1.0,
+                //         "exclude_restricted": false,   // Ignore restrictions like "access=no"
+                //         "allow_bicycle": true, 
+                //         "allow_bicycle": true,
+                //         "top_speed": 80 
+                //     }
+                // },
 
                 // costing: 'motor_scooter', // Motor-scooter type
                 // costing_options: {
@@ -143,8 +214,9 @@
                 .then(data => {
                     // Extract the encoded polyline from Valhalla's response
                     var encodedPolyline = data.trip.legs[0].shape;
-
+                    var fromURL = decode('', 6)
                     // Decode the polyline using the polyline library
+                    console.log(fromURL);
                     var decodedPolyline = decode(encodedPolyline, 6); // Decode to lat/lon pairs
                     console.log(decodedPolyline)
                     // Add decoded route to the map
